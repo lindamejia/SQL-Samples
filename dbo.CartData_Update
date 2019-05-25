@@ -1,0 +1,43 @@
+USE [C68]
+GO
+/****** Object:  StoredProcedure [dbo].[CartData_Update]    Script Date: 5/25/2019 2:12:59 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[CartData_Update]
+
+	@ProductId INT,
+	@UserId INT,
+	@Quantity INT
+
+
+AS
+
+/*
+
+	DECLARE
+		@ProductId INT = 5,
+		@UserId INT = 93,
+		@Quantity INT = 5
+
+	EXEC dbo.CartData_Update
+		@ProductId,
+		@UserId,
+		@Quantity
+
+*/
+
+BEGIN
+
+	UPDATE dbo.CartData
+	
+	SET
+		Quantity = @Quantity
+
+	WHERE
+		ProductId = @ProductId
+		AND
+		UserId = @UserId
+
+END
