@@ -1,0 +1,195 @@
+USE [C68]
+GO
+/****** Object:  StoredProcedure [dbo].[Orders_CreateOrderByMerchant]    Script Date: 5/25/2019 2:17:43 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[Orders_CreateOrderByMerchant]
+
+		@UserId INT,
+		@MerchantId INT,
+		@Id INT OUTPUT
+		
+
+AS
+
+DECLARE @OrderStatus INT = 1
+/*	
+
+	DECLARE
+		@UserId INT = 94,
+		@MerchantId INT = 71,
+		@Id INT
+		
+
+
+	EXEC dbo.Orders_CreateOrderByMerchant
+		@UserId,
+		@MerchantId,
+		@Id OUTPUT
+	
+	SELECT * FROM dbo.CartData
+	SELECT * FROM dbo.Orders
+	SELECT * FROM dbo.OrderDetails
+	SELECT * FROM dbo.Products 
+	UPDATE dbo.Products set Quantity = 4000
+
+ 
+	
+*/
+
+BEGIN
+
+	SET XACT_ABORT ON 
+	
+	declare @Tran NVARCHAR(50) = '_OrderDetails_checkoutByMerchant'
+
+	BEGIN TRY 
+
+		BEGIN TRANSACTION @Tran
+
+		-- proc to create an order record 
+		INSERT INTO
+			dbo.Orders 
+			(
+				UserId, 
+				ShippingAddressId, 
+				BillingAddressId, 
+				Subtotal, 
+				Tax,
+				ShippingCost,
+				Total,
+				OrderStatus
+			)
+		SELECT TOP 1
+			UserId,
+			ShippingAddressId,
+			BillingAddressId,
+			Subtotal, -- we do not really use it
+			Tax,-- we are not even doing right now
+			ShippingCost, -- we are not doing right now
+			subtotal,
+			@OrderStatus
+		FROM
+			dbo.CartData
+		WHERE
+			@UserId = UserId AND
+			@MerchantId = MerchantId 			
+
+		SET @Id = SCOPE_IDENTITY();
+
+
+		Declare @CountOfProdsInCart int = 0,
+		@CurrentProducts int
+
+		Declare @Prods Table (
+
+		ProductId int not null,
+		Quantity int not null,
+
+		Primary Key (ProductId, Quantity)
+
+		)
+		Insert into @Prods (ProductId, Quantity)
+		SELECT
+			
+			ProductId,
+			Quantity 
+		FROM
+			dbo.CartData
+		WHERE
+			@UserId = UserId AND
+			@MerchantId=MerchantId
+
+		-- count how many things we have in the cart
+		select @CountOfProdsInCart = count(1)
+		from @Prods
+
+
+		-- we are looking to get a matching record count
+		Select @CurrentProducts = Count(1)
+		From dbo.products p inner join @prods cart
+					on cart.ProductId = p.id
+		Where p.Quantity >= cart.Quantity
+
+
+
+		-- if @CountOfProdsInCart > @CurrentProdcuts problem -- we need to throw
+
+		IF (@CountOfProdsInCart > @CurrentProducts)
+				BEGIN 
+					PRINT @CountOfProdsInCart 
+					PRINT @CurrentProducts
+					;THROW 51000, 'There was not enough Inventory', 1; 
+				END
+
+		-- this far the qtys are good
+	   
+		-- update prodcuts to subtract quantity
+		
+			UPDATE dbo.Products
+				SET 
+					Quantity = p.Quantity - cart.Quantity
+
+					FROM dbo.Products p 
+				 INNER JOIN 
+				 @prods cart 
+				 ON p.Id = cart.ProductId
+				
+				Where p.Id = cart.ProductId
+			
+				
+			
+		-- insert into order details
+
+		INSERT INTO
+			dbo.OrderDetails 
+			(	
+				OrderId,
+				ProductId, 
+				BasePrice, 
+				Quantity, 
+				InfluencerId, 
+				CampaignId
+			)
+		SELECT
+			@Id,
+			ProductId,
+			Subtotal, 
+			Quantity, 
+			InfluencerId, 
+			CampaignId
+		FROM
+			dbo.CartData
+		WHERE
+			@UserId = UserId AND
+			@MerchantId=MerchantId
+			
+
+		DELETE FROM dbo.CartData
+			WHERE @UserId = UserId AND @MerchantId= MerchantId
+
+		COMMIT TRANSACTION @Tran;
+
+	END TRY	
+
+
+	BEGIN CATCH 
+
+		Select @@ERROR
+
+		IF (XACT_STATE() = 1) 
+			BEGIN
+				COMMIT TRANSACTION @Tran;
+			END;
+
+
+		THROW 
+
+	END CATCH 
+
+
+	SET XACT_ABORT OFF
+
+END
