@@ -1,0 +1,47 @@
+USE [C68]
+GO
+/****** Object:  StoredProcedure [dbo].[CartData_SelectAll_MerchantId]    Script Date: 5/25/2019 2:11:59 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[CartData_SelectAll_MerchantId]
+
+	@MerchantId INT
+
+AS
+
+
+/* !! TEST CODE !!
+
+	DECLARE
+		@MerchantId INT = 3
+
+	EXEC dbo.CartData_SelectAll_MerchantId 
+		@MerchantId
+
+	SELECT * FROM CartData
+*/
+
+BEGIN
+
+	SELECT 
+		UserId,
+		 MerchantId,
+		 ProductId,
+		 SocialMedia,
+		 CampaignId,
+		 InfluencerId,
+		 Quantity,
+		 Tax,
+		 ShippingCost,
+		 Subtotal,
+		 BillingAddressId,
+		 ShippingAddressId,
+		 PaymentTokenId
+
+	FROM dbo.CartData
+
+	WHERE @MerchantId = MerchantId
+
+END
